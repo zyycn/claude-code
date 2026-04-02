@@ -8,10 +8,15 @@ const outdir = process.env.CLAUDE_CODE_BUILD_OUTDIR?.trim() || "dist";
 const { rmSync } = await import("fs");
 rmSync(outdir, { recursive: true, force: true });
 
+// Built-in fork feature gates that should always be compiled in.
+const defaultFeatures = ["BUDDY"];
+
 // Collect FEATURE_* env vars → Bun.build features
-const features = Object.keys(process.env)
+const envFeatures = Object.keys(process.env)
     .filter(k => k.startsWith("FEATURE_"))
     .map(k => k.replace("FEATURE_", ""));
+
+const features = [...new Set([...defaultFeatures, ...envFeatures])];
 
 // Step 2: Bundle with splitting
 const result = await Bun.build({

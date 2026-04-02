@@ -102,6 +102,7 @@ dist/npm/
 - Buddy 扩展：
   - `/buddy hatch`、`/buddy rehatch`、`/buddy pet`、`/buddy mute`、`/buddy unmute` 可直接使用。
   - 启动后可在输入区旁显示 companion，并支持 pet 动画和静音恢复。
+  - 开发和发布构建默认内建，不再需要手动设置 `FEATURE_BUDDY=1`。
 - 启动页体验增强：
   - 启动欢迎屏支持 Recent activity 预载入。
   - 支持从 npm registry 检测 fork 包的新版本并提示升级命令。
@@ -314,7 +315,7 @@ dist/npm/
 | `/torch` | `TORCH` |
 | `/peers` | `UDS_INBOX` |
 | `/fork` | `FORK_SUBAGENT` |
-| `/buddy` | `BUDDY` |
+| `/buddy` | 默认内建 |
 
 ### 斜杠命令 — ANT-ONLY（不可用）
 
@@ -433,7 +434,7 @@ claude-code/
 | `KAIROS_GITHUB_WEBHOOKS` | GitHub Webhook 订阅 — PR 事件实时推送给 Agent |
 | `PROACTIVE` | 主动模式 — Agent 主动执行任务，含 SleepTool 定时唤醒 |
 | `COORDINATOR_MODE` | 协调器模式 — 多 Agent 编排调度 |
-| `BUDDY` | Buddy 配对编程功能 |
+| `BUDDY` | Buddy 配对编程功能（本 fork 默认开启） |
 | `FORK_SUBAGENT` | Fork 子代理 — 从当前会话分叉出独立子代理 |
 
 ### 远程 / 分布式
