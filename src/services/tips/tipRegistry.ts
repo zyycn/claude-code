@@ -39,6 +39,7 @@ import { getPlatform } from '../../utils/platform.js'
 import { isPluginInstalled } from '../../utils/plugins/installedPluginsManager.js'
 import { loadKnownMarketplacesConfigSafe } from '../../utils/plugins/marketplaceManager.js'
 import { OFFICIAL_MARKETPLACE_NAME } from '../../utils/plugins/officialMarketplace.js'
+import { getCliBin } from '../../utils/cliBranding.js'
 import {
   getCurrentSessionAgentColor,
   isCustomTitleEnabled,
@@ -376,7 +377,7 @@ const externalTips: Tip[] = [
   {
     id: 'continue',
     content: async () =>
-      'Run claude --continue or claude --resume to resume a conversation',
+      `Run ${getCliBin()} --continue or ${getCliBin()} --resume to resume a conversation`,
     cooldownSessions: 10,
     isRelevant: async () => true,
   },

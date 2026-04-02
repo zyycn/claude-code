@@ -50,6 +50,7 @@ import { count, uniq } from './utils/array.js';
 import { installAsciicastRecorder } from './utils/asciicast.js';
 import { getSubscriptionType, isClaudeAISubscriber, prefetchAwsCredentialsAndBedRockInfoIfSafe, prefetchGcpCredentialsIfSafe, validateForceLoginOrg } from './utils/auth.js';
 import { checkHasTrustDialogAccepted, getGlobalConfig, getRemoteControlAtStartup, isAutoUpdaterDisabled, saveGlobalConfig } from './utils/config.js';
+import { getCliBin, getCliDisplayName } from './utils/cliBranding.js';
 import { seedEarlyInput, stopCapturingEarlyInput } from './utils/earlyInput.js';
 import { getInitialEffortSetting, parseEffortValue } from './utils/effort.js';
 import { getInitialFastModeSetting, isFastModeEnabled, prefetchFastModeStatus, resolveFastModeStatusFromCache } from './utils/fastMode.js';
@@ -58,12 +59,16 @@ import { createSystemMessage, createUserMessage } from './utils/messages.js';
 import { getPlatform } from './utils/platform.js';
 import { getBaseRenderOptions } from './utils/renderOptions.js';
 import { getSessionIngressAuthToken } from './utils/sessionIngressAuth.js';
+import { handleMainSigint } from './utils/signalHandling.js';
 import { settingsChangeDetector } from './utils/settings/changeDetector.js';
 import { skillChangeDetector } from './utils/skills/skillChangeDetector.js';
 import { jsonParse, writeFileSync_DEPRECATED } from './utils/slowOperations.js';
 import { computeInitialTeamContext } from './utils/swarm/reconnection.js';
 import { initializeWarningHandler } from './utils/warningHandler.js';
 import { isWorktreeModeEnabled } from './utils/worktreeModeEnabled.js';
+
+const CLI_BIN = getCliBin();
+const CLI_DISPLAY_NAME = getCliDisplayName(CLI_BIN);
 
 // Lazy require to avoid circular dependency: teammate.ts -> AppState.tsx -> ... -> main.tsx
 /* eslint-disable @typescript-eslint/no-require-imports */
@@ -593,13 +598,7 @@ export async function main() {
     resetCursor();
   });
   process.on('SIGINT', () => {
-    // In print mode, print.ts registers its own SIGINT handler that aborts
-    // the in-flight query and calls gracefulShutdown; skip here to avoid
-    // preempting it with a synchronous process.exit().
-    if (process.argv.includes('-p') || process.argv.includes('--print')) {
-      return;
-    }
-    process.exit(0);
+    handleMainSigint();
   });
   profileCheckpoint('main_warning_handler_initialized');
 
@@ -781,7 +780,7 @@ export async function main() {
       // Headless (-p) mode is not supported with SSH in v1 — reject early
       // so the flag doesn't silently cause local execution.
       if (rest.includes('-p') || rest.includes('--print')) {
-        process.stderr.write('Error: headless (-p/--print) mode is not supported with claude ssh\n');
+        process.stderr.write(`Error: headless (-p/--print) mode is not supported with ${CLI_BIN} ssh\n`);
         gracefulShutdownSync(1);
         return;
       }
@@ -962,7 +961,7 @@ async function run(): Promise<CommanderCommand> {
     }
     profileCheckpoint('preAction_after_settings_sync');
   });
-  program.name('claude').description(`Claude Code - starts an interactive session by default, use -p/--print for non-interactive output`).argument('[prompt]', 'Your prompt', String)
+  program.name(CLI_BIN).description(`${CLI_DISPLAY_NAME} - starts an interactive session by default, use -p/--print for non-interactive output`).argument('[prompt]', 'Your prompt', String)
   // Subcommands inherit helpOption via commander's copyInheritedSettings —
   // setting it once here covers mcp, plugin, auth, and all other subcommands.
   .helpOption('-h, --help', 'Display help for command').option('-d, --debug [filter]', 'Enable debug mode with optional category filtering (e.g., "api,hooks" or "!1p,!file")', (_value: string | true) => {
@@ -3284,7 +3283,7 @@ async function run(): Promise<CommanderCommand> {
           }
           // The daemon needs a few seconds to spin up its worker and
           // establish a bridge session before discovery will find it.
-          return await exitWithMessage(root, `Assistant installed in ${installedDir}. The daemon is starting up — run \`claude assistant\` again in a few seconds to connect.`, {
+          return await exitWithMessage(root, `Assistant installed in ${installedDir}. The daemon is starting up — run \`${CLI_BIN} assistant\` again in a few seconds to connect.`, {
             exitCode: 0,
             beforeExit: () => gracefulShutdown(0)
           });
@@ -3410,7 +3409,7 @@ async function run(): Promise<CommanderCommand> {
         // Check if TUI mode is enabled - description is only optional in TUI mode
         const isRemoteTuiEnabled = getFeatureValue_CACHED_MAY_BE_STALE('tengu_remote_backend', false);
         if (!isRemoteTuiEnabled && !hasInitialPrompt) {
-          return await exitWithError(root, 'Error: --remote requires a description.\nUsage: claude --remote "your task description"', () => gracefulShutdown(1));
+          return await exitWithError(root, `Error: --remote requires a description.\nUsage: ${CLI_BIN} --remote "your task description"`, () => gracefulShutdown(1));
         }
         logEvent('tengu_remote_create_session', {
           has_initial_prompt: String(hasInitialPrompt) as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
@@ -3802,7 +3801,7 @@ async function run(): Promise<CommanderCommand> {
         pendingHookMessages
       }, renderAndRun);
     }
-  }).version(`${MACRO.VERSION} (Claude Code)`, '-v, --version', 'Output the version number');
+  }).version(`${MACRO.VERSION} (${CLI_DISPLAY_NAME})`, '-v, --version', 'Output the version number');
 
   // Worktree flags
   program.option('-w, --worktree [name]', 'Create a new git worktree for this session (optionally specify a name)');
@@ -4044,7 +4043,7 @@ async function run(): Promise<CommanderCommand> {
       // Argv rewriting in main() should have consumed `ssh <host>` before
       // commander runs. Reaching here means host was missing or the
       // rewrite predicate didn't match.
-      process.stderr.write('Usage: claude ssh <user@host | ssh-config-alias> [dir]\n\n' + "Runs Claude Code on a remote Linux host. You don't need to install\n" + 'anything on the remote or run `claude auth login` there — the binary is\n' + 'deployed over SSH and API auth tunnels back through your local machine.\n');
+      process.stderr.write(`Usage: ${CLI_BIN} ssh <user@host | ssh-config-alias> [dir]\n\n` + `Runs ${CLI_DISPLAY_NAME} on a remote Linux host. You don't need to install\n` + `anything on the remote or run \`${CLI_BIN} auth login\` there — the binary is\n` + 'deployed over SSH and API auth tunnels back through your local machine.\n');
       process.exit(1);
     });
   }
@@ -4334,7 +4333,7 @@ async function run(): Promise<CommanderCommand> {
       // before commander runs. Reaching here means a root flag came first
       // (e.g. `--debug assistant`) and the position-0 predicate
       // didn't match. Print usage like the ssh stub does.
-      process.stderr.write('Usage: claude assistant [sessionId]\n\n' + 'Attach the REPL as a viewer client to a running bridge session.\n' + 'Omit sessionId to discover and pick from available sessions.\n');
+      process.stderr.write(`Usage: ${CLI_BIN} assistant [sessionId]\n\n` + 'Attach the REPL as a viewer client to a running bridge session.\n' + 'Omit sessionId to discover and pick from available sessions.\n');
       process.exit(1);
     });
   }

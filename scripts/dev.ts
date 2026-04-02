@@ -6,7 +6,19 @@
  */
 import { getMacroDefines } from "./defines.ts";
 
-const defines = getMacroDefines();
+const env = {
+    ...process.env,
+    CLAUDE_CODE_BIN_NAME: process.env.CLAUDE_CODE_BIN_NAME?.trim() || "claudex",
+    CLAUDE_CODE_PACKAGE_NAME:
+        process.env.CLAUDE_CODE_PACKAGE_NAME?.trim() || "@zyycn/claudex",
+    CLAUDE_CODE_PACKAGE_BIN:
+        process.env.CLAUDE_CODE_PACKAGE_BIN?.trim() ||
+        process.env.CLAUDE_CODE_BIN_NAME?.trim() ||
+        "claudex",
+    CLAUDE_CODE_FORCE_FULL_LOGO:
+        process.env.CLAUDE_CODE_FORCE_FULL_LOGO ?? "1",
+};
+const defines = getMacroDefines(env);
 
 const defineArgs = Object.entries(defines).flatMap(([k, v]) => [
     "-d",
@@ -28,7 +40,10 @@ const featureArgs = allFeatures.flatMap((name) => ["--feature", name]);
 
 const result = Bun.spawnSync(
     ["bun", "run", ...defineArgs, ...featureArgs, "src/entrypoints/cli.tsx", ...process.argv.slice(2)],
-    { stdio: ["inherit", "inherit", "inherit"] },
+    {
+        env,
+        stdio: ["inherit", "inherit", "inherit"],
+    },
 );
 
 process.exit(result.exitCode ?? 0);

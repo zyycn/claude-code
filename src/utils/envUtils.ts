@@ -7,11 +7,15 @@ import { join } from 'path'
 export const getClaudeConfigHomeDir = memoize(
   (): string => {
     return (
-      process.env.CLAUDE_CONFIG_DIR ?? join(homedir(), '.claude')
+      process.env.CLAUDE_CONFIG_DIR ?? join(homedir(), '.claudex')
     ).normalize('NFC')
   },
   () => process.env.CLAUDE_CONFIG_DIR,
 )
+
+export function getLegacyClaudeConfigHomeDir(): string {
+  return join(homedir(), '.claude').normalize('NFC')
+}
 
 export function getTeamsDir(): string {
   return join(getClaudeConfigHomeDir(), 'teams')

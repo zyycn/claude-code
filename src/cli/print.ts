@@ -32,6 +32,7 @@ import {
   logForDiagnosticsNoPII,
   withDiagnosticsTiming,
 } from 'src/utils/diagLogs.js'
+import { getCliBin } from 'src/utils/cliBranding.js'
 import { toolMatchesName, type Tool, type Tools } from 'src/Tool.js'
 import {
   type AgentDefinition,
@@ -107,6 +108,8 @@ import {
 } from 'src/utils/gracefulShutdown.js'
 import { registerCleanup } from 'src/utils/cleanupRegistry.js'
 import { createIdleTimeoutManager } from 'src/utils/idleTimeout.js'
+
+const CLI_BIN = getCliBin()
 import type {
   SDKStatus,
   ModelInfo,
@@ -5035,7 +5038,7 @@ async function loadInitialMessages(
       )
       if (!parsedSessionId) {
         let errorMessage =
-          'Error: --resume requires a valid session ID when used with --print. Usage: claude -p --resume <session-id>'
+          `Error: --resume requires a valid session ID when used with --print. Usage: ${CLI_BIN} -p --resume <session-id>`
         if (typeof options.resume === 'string') {
           errorMessage += `. Session IDs must be in UUID format (e.g., 550e8400-e29b-41d4-a716-446655440000). Provided value "${options.resume}" is not a valid UUID`
         }

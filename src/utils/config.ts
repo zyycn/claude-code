@@ -27,6 +27,7 @@ import { stripBOM } from './jsonRead.js'
 import * as lockfile from './lockfile.js'
 import { logError } from './log.js'
 import type { MemoryType } from './memory/types.js'
+import { supportsManagedAutoInstall } from './packageIdentity.js'
 import { normalizePathForConfigKey } from './path.js'
 import { getEssentialTrafficOnlyReason } from './privacyLevel.js'
 import { getManagedFilePath } from './settings/managedPath.js'
@@ -181,6 +182,14 @@ export type DiffTool = 'terminal' | 'auto'
 export type OutputStyle = string
 
 export type GlobalConfig = {
+  customApiEndpoint?: {
+    provider?: 'anthropic' | 'openai'
+    baseURL?: string
+    apiKey?: string
+    model?: string
+    savedModels?: string[]
+    savedModelsByProvider?: Partial<Record<'anthropic' | 'openai', string[]>>
+  }
   /**
    * @deprecated Use settings.apiKeyHelper instead.
    */
@@ -556,7 +565,6 @@ export type GlobalConfig = {
   // Speculation configuration (ant-only)
   speculationEnabled?: boolean // Whether speculation is enabled (default: true)
 
-
   // Client data for server-side experiments (fetched during bootstrap).
   clientDataCache?: Record<string, unknown> | null
 
@@ -584,6 +592,13 @@ export type GlobalConfig = {
  */
 function createDefaultGlobalConfig(): GlobalConfig {
   return {
+    customApiEndpoint: {
+      baseURL: undefined,
+      apiKey: undefined,
+      model: undefined,
+      savedModels: [],
+      savedModelsByProvider: {},
+    },
     numStartups: 0,
     installMethod: undefined,
     autoUpdates: undefined,
@@ -625,6 +640,7 @@ function createDefaultGlobalConfig(): GlobalConfig {
 export const DEFAULT_GLOBAL_CONFIG: GlobalConfig = createDefaultGlobalConfig()
 
 export const GLOBAL_CONFIG_KEYS = [
+  'customApiEndpoint',
   'apiKeyHelper',
   'installMethod',
   'autoUpdates',
@@ -1716,6 +1732,7 @@ export function shouldSkipPluginAutoupdate(): boolean {
 
 export type AutoUpdaterDisabledReason =
   | { type: 'development' }
+  | { type: 'distribution' }
   | { type: 'env'; envVar: string }
   | { type: 'config' }
 
@@ -1725,6 +1742,8 @@ export function formatAutoUpdaterDisabledReason(
   switch (reason.type) {
     case 'development':
       return 'development build'
+    case 'distribution':
+      return 'fork distribution'
     case 'env':
       return `${reason.envVar} set`
     case 'config':
@@ -1735,6 +1754,9 @@ export function formatAutoUpdaterDisabledReason(
 export function getAutoUpdaterDisabledReason(): AutoUpdaterDisabledReason | null {
   if (process.env.NODE_ENV === 'development') {
     return { type: 'development' }
+  }
+  if (!supportsManagedAutoInstall()) {
+    return { type: 'distribution' }
   }
   if (isEnvTruthy(process.env.DISABLE_AUTOUPDATER)) {
     return { type: 'env', envVar: 'DISABLE_AUTOUPDATER' }

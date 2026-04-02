@@ -69,7 +69,11 @@ import { updateSessionName } from './concurrentSessions.js'
 import { getCwd } from './cwd.js'
 import { logForDebugging } from './debug.js'
 import { logForDiagnosticsNoPII } from './diagLogs.js'
-import { getClaudeConfigHomeDir, isEnvTruthy } from './envUtils.js'
+import {
+  getClaudeConfigHomeDir,
+  getLegacyClaudeConfigHomeDir,
+  isEnvTruthy,
+} from './envUtils.js'
 import { isFsInaccessible } from './errors.js'
 import type { FileHistorySnapshot } from './fileHistory.js'
 import { formatFileSize } from './format.js'
@@ -197,6 +201,15 @@ export function isEphemeralToolProgress(dataType: unknown): boolean {
 
 export function getProjectsDir(): string {
   return join(getClaudeConfigHomeDir(), 'projects')
+}
+
+function getReadableProjectsDirs(): string[] {
+  const dirs = [getProjectsDir()]
+  const legacyProjectsDir = join(getLegacyClaudeConfigHomeDir(), 'projects')
+  if (!dirs.includes(legacyProjectsDir)) {
+    dirs.push(legacyProjectsDir)
+  }
+  return dirs
 }
 
 export function getTranscriptPath(): string {
@@ -2560,10 +2573,26 @@ async function trackSessionBranchingAnalytics(
 export async function fetchLogs(limit?: number): Promise<LogOption[]> {
   const projectDir = getProjectDir(getOriginalCwd())
   const logs = await getSessionFilesLite(projectDir, limit, getOriginalCwd())
+  const legacyProjectDir = join(
+    getLegacyClaudeConfigHomeDir(),
+    'projects',
+    basename(projectDir),
+  )
+  const mergedLogs =
+    legacyProjectDir === projectDir
+      ? logs
+      : deduplicateLogsBySessionId([
+          ...logs,
+          ...(await getSessionFilesLite(
+            legacyProjectDir,
+            limit,
+            getOriginalCwd(),
+          )),
+        ])
 
-  await trackSessionBranchingAnalytics(logs)
+  await trackSessionBranchingAnalytics(mergedLogs)
 
-  return logs
+  return mergedLogs
 }
 
 /**
@@ -3979,18 +4008,10 @@ export async function loadAllProjectsMessageLogs(
 async function loadAllProjectsMessageLogsFull(
   limit?: number,
 ): Promise<LogOption[]> {
-  const projectsDir = getProjectsDir()
-
-  let dirents: Dirent[]
-  try {
-    dirents = await readdir(projectsDir, { withFileTypes: true })
-  } catch {
+  const projectDirs = await getAllReadableProjectDirs()
+  if (projectDirs.length === 0) {
     return []
   }
-
-  const projectDirs = dirents
-    .filter(dirent => dirent.isDirectory())
-    .map(dirent => join(projectsDir, dirent.name))
 
   const logsPerProject = await Promise.all(
     projectDirs.map(projectDir => getLogsWithoutIndex(projectDir, limit)),
@@ -4020,18 +4041,10 @@ export async function loadAllProjectsMessageLogsProgressive(
   limit?: number,
   initialEnrichCount: number = INITIAL_ENRICH_COUNT,
 ): Promise<SessionLogResult> {
-  const projectsDir = getProjectsDir()
-
-  let dirents: Dirent[]
-  try {
-    dirents = await readdir(projectsDir, { withFileTypes: true })
-  } catch {
+  const projectDirs = await getAllReadableProjectDirs()
+  if (projectDirs.length === 0) {
     return { logs: [], allStatLogs: [], nextIndex: 0 }
   }
-
-  const projectDirs = dirents
-    .filter(dirent => dirent.isDirectory())
-    .map(dirent => join(projectsDir, dirent.name))
 
   const rawLogs: LogOption[] = []
   for (const projectDir of projectDirs) {
@@ -4115,12 +4128,20 @@ async function getStatOnlyLogsForWorktrees(
   worktreePaths: string[],
   limit?: number,
 ): Promise<LogOption[]> {
-  const projectsDir = getProjectsDir()
-
   if (worktreePaths.length <= 1) {
     const cwd = getOriginalCwd()
     const projectDir = getProjectDir(cwd)
-    return getSessionFilesLite(projectDir, undefined, cwd)
+    const legacyProjectDir = join(
+      getLegacyClaudeConfigHomeDir(),
+      'projects',
+      basename(projectDir),
+    )
+    return deduplicateLogsBySessionId([
+      ...(await getSessionFilesLite(projectDir, undefined, cwd)),
+      ...(legacyProjectDir === projectDir
+        ? []
+        : await getSessionFilesLite(legacyProjectDir, undefined, cwd)),
+    ])
   }
 
   // On Windows, drive letter case can differ between git worktree list
@@ -4144,41 +4165,68 @@ async function getStatOnlyLogsForWorktrees(
   const allLogs: LogOption[] = []
   const seenDirs = new Set<string>()
 
-  let allDirents: Dirent[]
-  try {
-    allDirents = await readdir(projectsDir, { withFileTypes: true })
-  } catch (e) {
-    // Fall back to current project
-    logForDebugging(
-      `Failed to read projects dir ${projectsDir}, falling back to current project: ${e}`,
-    )
-    const projectDir = getProjectDir(getOriginalCwd())
-    return getSessionFilesLite(projectDir, limit, getOriginalCwd())
-  }
+  let matchedAnyRoot = false
+  for (const projectsDir of getReadableProjectsDirs()) {
+    let allDirents: Dirent[]
+    try {
+      allDirents = await readdir(projectsDir, { withFileTypes: true })
+    } catch (e) {
+      logForDebugging(`Failed to read projects dir ${projectsDir}: ${e}`)
+      continue
+    }
+    matchedAnyRoot = true
 
-  for (const dirent of allDirents) {
-    if (!dirent.isDirectory()) continue
-    const dirName = caseInsensitive ? dirent.name.toLowerCase() : dirent.name
-    if (seenDirs.has(dirName)) continue
+    for (const dirent of allDirents) {
+      if (!dirent.isDirectory()) continue
+      const dirName = caseInsensitive ? dirent.name.toLowerCase() : dirent.name
+      const seenKey = `${projectsDir}:${dirName}`
+      if (seenDirs.has(seenKey)) continue
 
-    for (const { path: wtPath, prefix } of indexed) {
-      if (dirName === prefix || dirName.startsWith(prefix + '-')) {
-        seenDirs.add(dirName)
-        allLogs.push(
-          ...(await getSessionFilesLite(
-            join(projectsDir, dirent.name),
-            undefined,
-            wtPath,
-          )),
-        )
-        break
+      for (const { path: wtPath, prefix } of indexed) {
+        if (dirName === prefix || dirName.startsWith(prefix + '-')) {
+          seenDirs.add(seenKey)
+          allLogs.push(
+            ...(await getSessionFilesLite(
+              join(projectsDir, dirent.name),
+              undefined,
+              wtPath,
+            )),
+          )
+          break
+        }
       }
     }
+  }
+
+  if (!matchedAnyRoot) {
+    const projectDir = getProjectDir(getOriginalCwd())
+    return getSessionFilesLite(projectDir, limit, getOriginalCwd())
   }
 
   // Deduplicate by sessionId — the same session can appear in multiple
   // worktree project dirs. Keep the entry with the newest modified time.
   return deduplicateLogsBySessionId(allLogs)
+}
+
+async function getAllReadableProjectDirs(): Promise<string[]> {
+  const projectDirs: string[] = []
+
+  for (const projectsDir of getReadableProjectsDirs()) {
+    let dirents: Dirent[]
+    try {
+      dirents = await readdir(projectsDir, { withFileTypes: true })
+    } catch {
+      continue
+    }
+
+    projectDirs.push(
+      ...dirents
+        .filter(dirent => dirent.isDirectory())
+        .map(dirent => join(projectsDir, dirent.name)),
+    )
+  }
+
+  return [...new Set(projectDirs)]
 }
 
 /**

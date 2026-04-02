@@ -10,6 +10,7 @@ import {
   AuthenticationError,
 } from '@anthropic-ai/sdk'
 import { getModelStrings } from './modelStrings.js'
+import { getGlobalConfig } from '../config.js'
 
 // Cache valid models to avoid repeated API calls
 const validModelCache = new Map<string, boolean>()
@@ -21,6 +22,7 @@ export async function validateModel(
   model: string,
 ): Promise<{ valid: boolean; error?: string }> {
   const normalizedModel = model.trim()
+  const customBaseURL = getGlobalConfig().customApiEndpoint?.baseURL
 
   // Empty model is invalid
   if (!normalizedModel) {
@@ -43,6 +45,12 @@ export async function validateModel(
 
   // Check if it matches ANTHROPIC_CUSTOM_MODEL_OPTION (pre-validated by the user)
   if (normalizedModel === process.env.ANTHROPIC_CUSTOM_MODEL_OPTION) {
+    return { valid: true }
+  }
+
+  // For custom compatible gateways, allow arbitrary model identifiers.
+  if (customBaseURL && customBaseURL.trim() !== '') {
+    validModelCache.set(normalizedModel, true)
     return { valid: true }
   }
 

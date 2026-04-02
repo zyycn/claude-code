@@ -40,10 +40,10 @@ import {
 import { hasWorktreeCreateHook } from './utils/hooks.js'
 import { checkAndRestoreITerm2Backup } from './utils/iTermBackup.js'
 import { logError } from './utils/log.js'
-import { getRecentActivity } from './utils/logoV2Utils.js'
 import { lockCurrentVersion } from './utils/nativeInstaller/index.js'
 import type { PermissionMode } from './utils/permissions/PermissionMode.js'
 import { getPlanSlug } from './utils/plans.js'
+import { preloadLogoData } from './utils/logoStartup.js'
 import { saveWorktreeState } from './utils/sessionStorage.js'
 import { profileCheckpoint } from './utils/startupProfiler.js'
 import {
@@ -381,16 +381,7 @@ export async function setup(
   profileCheckpoint('setup_after_prefetch')
 
   // Pre-fetch data for Logo v2 - await to ensure it's ready before logo renders.
-  // --bare / SIMPLE: skip — release notes are interactive-UI display data,
-  // and getRecentActivity() reads up to 10 session JSONL files.
-  if (!isBareMode()) {
-    const { hasReleaseNotes } = await checkForReleaseNotes(
-      getGlobalConfig().lastReleaseNotesSeen,
-    )
-    if (hasReleaseNotes) {
-      await getRecentActivity()
-    }
-  }
+  await preloadLogoData()
 
   // If permission mode is set to bypass, verify we're in a safe environment
   if (

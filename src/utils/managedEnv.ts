@@ -1,6 +1,7 @@
 import { isRemoteManagedSettingsEligible } from '../services/remoteManagedSettings/syncCache.js'
 import { clearCACertsCache } from './caCerts.js'
 import { getGlobalConfig } from './config.js'
+import { readCustomApiStorage } from './customApiStorage.js'
 import { isEnvTruthy } from './envUtils.js'
 import {
   isProviderManagedEnvVar,
@@ -134,6 +135,7 @@ export function applySafeConfigEnvironmentVariables(): void {
   // filterSettingsEnv strips keys that were in the spawn env snapshot so
   // the desktop host's operational vars (OTEL, etc.) are not overridden.
   Object.assign(process.env, filterSettingsEnv(getGlobalConfig().env))
+  applyPersistedCustomApiEndpointEnv()
 
   // Apply ALL env vars from trusted setting sources, policySettings last.
   // Gate on isSettingSourceEnabled so SDK settingSources: [] (isolation mode)
@@ -186,6 +188,7 @@ export function applySafeConfigEnvironmentVariables(): void {
  */
 export function applyConfigEnvironmentVariables(): void {
   Object.assign(process.env, filterSettingsEnv(getGlobalConfig().env))
+  applyPersistedCustomApiEndpointEnv()
 
   Object.assign(process.env, filterSettingsEnv(getSettings_DEPRECATED()?.env))
 
@@ -196,4 +199,23 @@ export function applyConfigEnvironmentVariables(): void {
 
   // Reconfigure proxy/mTLS agents to pick up any proxy env vars from settings
   configureGlobalAgents()
+}
+
+function applyPersistedCustomApiEndpointEnv(): void {
+  const customApiEndpoint = {
+    ...(getGlobalConfig().customApiEndpoint ?? {}),
+    ...readCustomApiStorage(),
+  }
+
+  if (customApiEndpoint.baseURL) {
+    process.env.ANTHROPIC_BASE_URL = customApiEndpoint.baseURL
+  }
+
+  if (customApiEndpoint.apiKey) {
+    process.env.ANTHROPIC_API_KEY = customApiEndpoint.apiKey
+  }
+
+  if (customApiEndpoint.model) {
+    process.env.ANTHROPIC_MODEL = customApiEndpoint.model
+  }
 }

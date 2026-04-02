@@ -72,6 +72,13 @@ export async function assertMinVersion(): Promise<void> {
     return
   }
 
+  // Fork/distribution packages can legitimately lag Anthropic's official
+  // npm versioning and should not be blocked by the official minimum-version
+  // kill switch.
+  if (MACRO.PACKAGE_URL && !MACRO.PACKAGE_URL.startsWith('@anthropic')) {
+    return
+  }
+
   try {
     const versionConfig = await getDynamicConfig_BLOCKS_ON_INIT<{
       minVersion: string

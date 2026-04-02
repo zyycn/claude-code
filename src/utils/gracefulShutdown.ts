@@ -39,6 +39,7 @@ import type { AppState } from '../state/AppState.js'
 import { runCleanupFunctions } from './cleanupRegistry.js'
 import { logForDebugging } from './debug.js'
 import { logForDiagnosticsNoPII } from './diagLogs.js'
+import { getCliBin } from './cliBranding.js'
 import { isEnvTruthy } from './envUtils.js'
 import { getCurrentSessionTitle, sessionIdExists } from './sessionStorage.js'
 import { sleep } from './sleep.js'
@@ -136,15 +137,16 @@ function cleanupTerminalModes(): void {
 }
 
 let resumeHintPrinted = false
+let exitBoundaryPrinted = false
 
 /**
  * Print a hint about how to resume the session.
  * Only shown for interactive sessions with persistence enabled.
  */
-function printResumeHint(): void {
+function printResumeHint(): boolean {
   // Only print once (failsafe timer may call this again after normal shutdown)
   if (resumeHintPrinted) {
-    return
+    return true
   }
   // Only show with TTY, interactive sessions, and persistence
   if (
@@ -156,7 +158,7 @@ function printResumeHint(): void {
       const sessionId = getSessionId()
       // Don't show resume hint if no session file exists (e.g., subcommands like `claude update`)
       if (!sessionIdExists(sessionId)) {
-        return
+        return false
       }
       const customTitle = getCurrentSessionTitle(sessionId)
 
@@ -173,10 +175,32 @@ function printResumeHint(): void {
       writeSync(
         1,
         chalk.dim(
-          `\nResume this session with:\nclaude --resume ${resumeArg}\n`,
+          `\nResume this session with:\n${getCliBin()} --resume ${resumeArg}\n`,
         ),
       )
       resumeHintPrinted = true
+      exitBoundaryPrinted = true
+      return true
+    } catch {
+      // Ignore write errors
+    }
+  }
+  return false
+}
+
+function printExitBoundary(options?: { expectFinalMessage?: boolean }): void {
+  if (exitBoundaryPrinted) {
+    return
+  }
+
+  if (printResumeHint()) {
+    return
+  }
+
+  if (!options?.expectFinalMessage && process.stdout.isTTY) {
+    try {
+      writeSync(1, '\n')
+      exitBoundaryPrinted = true
     } catch {
       // Ignore write errors
     }
@@ -372,6 +396,7 @@ export function isShuttingDown(): boolean {
 export function resetShutdownState(): void {
   shutdownInProgress = false
   resumeHintPrinted = false
+  exitBoundaryPrinted = false
   if (failsafeTimer !== undefined) {
     clearTimeout(failsafeTimer)
     failsafeTimer = undefined
@@ -417,7 +442,7 @@ export async function gracefulShutdown(
   failsafeTimer = setTimeout(
     code => {
       cleanupTerminalModes()
-      printResumeHint()
+      printExitBoundary()
       forceExit(code)
     },
     Math.max(5000, sessionEndTimeoutMs + 3500),
@@ -434,7 +459,7 @@ export async function gracefulShutdown(
   // hint would only appear after cleanup functions, hooks, and analytics
   // flush — which can take several seconds.
   cleanupTerminalModes()
-  printResumeHint()
+  printExitBoundary({ expectFinalMessage: Boolean(options?.finalMessage) })
 
   // Flush session data first — this is the most critical cleanup. If the
   // terminal is dead (SIGHUP, SSH disconnect), hooks and analytics may hang

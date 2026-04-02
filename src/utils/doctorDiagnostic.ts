@@ -232,19 +232,27 @@ async function detectMultipleInstallations(): Promise<
     // First check for active installations via bin/claude
     // Linux / macOS have prefix/bin/claude and prefix/lib/node_modules
     // Windows has prefix/claude and prefix/node_modules
-    const globalBinPath = isWindows
-      ? join(npmPrefix, 'claude')
-      : join(npmPrefix, 'bin', 'claude')
+    const globalBinCandidates = Array.from(
+      new Set([
+        isWindows ? join(npmPrefix, 'claude') : join(npmPrefix, 'bin', 'claude'),
+        isWindows
+          ? join(npmPrefix, MACRO.PACKAGE_BIN)
+          : join(npmPrefix, 'bin', MACRO.PACKAGE_BIN),
+      ]),
+    )
 
-    let globalBinExists = false
-    try {
-      await fs.stat(globalBinPath)
-      globalBinExists = true
-    } catch {
-      // Not found
+    let globalBinPath: string | null = null
+    for (const candidate of globalBinCandidates) {
+      try {
+        await fs.stat(candidate)
+        globalBinPath = candidate
+        break
+      } catch {
+        // Try next candidate
+      }
     }
 
-    if (globalBinExists) {
+    if (globalBinPath) {
       // Check if this is actually a Homebrew cask installation, not npm-global
       // When npm is installed via Homebrew, both can exist at /opt/homebrew/bin/claude
       // We need to resolve the symlink to see where it actually points

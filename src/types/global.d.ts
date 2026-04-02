@@ -13,6 +13,7 @@ declare namespace MACRO {
   export const ISSUES_EXPLAINER: string
   export const NATIVE_PACKAGE_URL: string
   export const PACKAGE_URL: string
+  export const PACKAGE_BIN: string
   export const VERSION_CHANGELOG: string
 }
 

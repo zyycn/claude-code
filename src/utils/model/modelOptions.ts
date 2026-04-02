@@ -1,6 +1,10 @@
 // biome-ignore-all assist/source/organizeImports: ANT-ONLY import markers must not be reordered
 import { getInitialMainLoopModel } from '../../bootstrap/state.js'
 import {
+  getSavedModelsForProvider,
+  readCustomApiStorage,
+} from '../customApiStorage.js'
+import {
   isClaudeAISubscriber,
   isMaxSubscriber,
   isTeamPremiumSubscriber,
@@ -459,6 +463,52 @@ function getKnownModelOption(model: string): ModelOption | null {
 }
 
 export function getModelOptions(fastMode = false): ModelOption[] {
+  const customApiEndpoint = {
+    ...(getGlobalConfig().customApiEndpoint ?? {}),
+    ...readCustomApiStorage(),
+  }
+  const customApiProvider = customApiEndpoint.provider
+  const customBaseURL = customApiEndpoint.baseURL?.trim()
+
+  if (
+    customBaseURL &&
+    (customApiProvider === 'openai' || customApiProvider === 'anthropic')
+  ) {
+    const savedModels = getSavedModelsForProvider(
+      customApiEndpoint,
+      customApiProvider,
+    )
+    const configuredModel = customApiEndpoint.model?.trim()
+    const endpointLabel =
+      customApiProvider === 'openai'
+        ? 'OpenAI-compatible endpoint'
+        : 'Anthropic-compatible endpoint'
+    const compatibleOptions: ModelOption[] = []
+
+    if (configuredModel) {
+      compatibleOptions.push({
+        value: null,
+        label: 'Default (recommended)',
+        description: `Use the configured ${endpointLabel} model (currently ${configuredModel})`,
+      })
+    }
+
+    for (const model of [
+      ...new Set([
+        ...(configuredModel ? [configuredModel] : []),
+        ...savedModels,
+      ]),
+    ]) {
+      compatibleOptions.push({
+        value: model,
+        label: model,
+        description: `${endpointLabel} model`,
+      })
+    }
+
+    return filterModelOptionsByAllowlist(compatibleOptions)
+  }
+
   const options = getModelOptionsBase(fastMode)
 
   // Add the custom model from the ANTHROPIC_CUSTOM_MODEL_OPTION env var

@@ -689,11 +689,24 @@ export function extractTag(html: string, tagName: string): string | null {
 
 export function isNotEmptyMessage(message: Message): boolean {
   if (
+    !message ||
+    typeof message !== 'object' ||
+    !('type' in message) ||
+    !message.type
+  ) {
+    return false
+  }
+
+  if (
     message.type === 'progress' ||
     message.type === 'attachment' ||
     message.type === 'system'
   ) {
     return true
+  }
+
+  if (!('message' in message) || !message.message) {
+    return false
   }
 
   if (typeof message.message.content === 'string') {

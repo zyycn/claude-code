@@ -2,6 +2,7 @@ import { c as _c } from "react/compiler-runtime";
 import * as React from 'react';
 import { type ReactNode, useEffect } from 'react';
 import { useMainLoopModel } from '../../hooks/useMainLoopModel.js';
+import { usePackageUpdateNotice } from '../../hooks/usePackageUpdateNotice.js';
 import { useTerminalSize } from '../../hooks/useTerminalSize.js';
 import { stringWidth } from '../../ink/stringWidth.js';
 import { Box, Text } from '../../ink.js';
@@ -11,19 +12,21 @@ import { truncate } from '../../utils/format.js';
 import { isFullscreenEnvEnabled } from '../../utils/fullscreen.js';
 import { formatModelAndBilling, getLogoDisplayData, truncatePath } from '../../utils/logoV2Utils.js';
 import { renderModelSetting } from '../../utils/model/model.js';
+import { formatPackageUpdateNotice } from '../../utils/packageUpdateNotice.js';
 import { OffscreenFreeze } from '../OffscreenFreeze.js';
 import { AnimatedClawd } from './AnimatedClawd.js';
 import { Clawd } from './Clawd.js';
 import { GuestPassesUpsell, incrementGuestPassesSeenCount, useShowGuestPassesUpsell } from './GuestPassesUpsell.js';
 import { incrementOverageCreditUpsellSeenCount, OverageCreditUpsell, useShowOverageCreditUpsell } from './OverageCreditUpsell.js';
 export function CondensedLogo() {
-  const $ = _c(29);
+  const $ = _c(30);
   const {
     columns
   } = useTerminalSize();
   const agent = useAppState(_temp);
   const effortValue = useAppState(_temp2);
   const model = useMainLoopModel();
+  const packageUpdateInfo = usePackageUpdateNotice();
   const modelDisplayName = renderModelSetting(model);
   const {
     version,
@@ -77,6 +80,7 @@ export function CondensedLogo() {
     truncatedModel,
     truncatedBilling
   } = formatModelAndBilling(modelDisplayName + effortSuffix, billingType, textWidth);
+  const packageUpdateNotice = packageUpdateInfo ? formatPackageUpdateNotice(packageUpdateInfo, textWidth) : null;
   const cwdAvailableWidth = agentName ? textWidth - 1 - stringWidth(agentName) - 3 : textWidth;
   const truncatedCwd = truncatePath(cwd, Math.max(cwdAvailableWidth, 10));
   let t4;
@@ -139,16 +143,17 @@ export function CondensedLogo() {
     t11 = $[22];
   }
   let t12;
-  if ($[23] !== t10 || $[24] !== t11 || $[25] !== t6 || $[26] !== t7 || $[27] !== t9) {
-    t12 = <OffscreenFreeze><Box flexDirection="row" gap={2} alignItems="center">{t4}<Box flexDirection="column">{t6}{t7}{t9}{t10}{t11}</Box></Box></OffscreenFreeze>;
-    $[23] = t10;
-    $[24] = t11;
-    $[25] = t6;
-    $[26] = t7;
-    $[27] = t9;
-    $[28] = t12;
+  if ($[23] !== packageUpdateNotice || $[24] !== t10 || $[25] !== t11 || $[26] !== t6 || $[27] !== t7 || $[28] !== t9) {
+    t12 = <OffscreenFreeze><Box flexDirection="row" gap={2} alignItems="center">{t4}<Box flexDirection="column">{t6}{packageUpdateNotice && <Text color="warning">{packageUpdateNotice}</Text>}{t7}{t9}{t10}{t11}</Box></Box></OffscreenFreeze>;
+    $[23] = packageUpdateNotice;
+    $[24] = t10;
+    $[25] = t11;
+    $[26] = t6;
+    $[27] = t7;
+    $[28] = t9;
+    $[29] = t12;
   } else {
-    t12 = $[28];
+    t12 = $[29];
   }
   return t12;
 }

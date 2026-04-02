@@ -38,6 +38,8 @@
     "build": "bun run build.ts",
     "dev": "bun run scripts/dev.ts",
     "prepublishOnly": "bun run build",
+    "release:prepare": "node ./scripts/release/prepare-release-package.mjs",
+    "sync:upstream": "./scripts/sync-upstream.sh",
     "lint": "biome lint src/",
     "lint:fix": "biome lint --fix src/",
     "format": "biome format --write src/",

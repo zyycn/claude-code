@@ -385,6 +385,12 @@ describe("isNotEmptyMessage", () => {
     };
     expect(isNotEmptyMessage(msg)).toBe(false);
   });
+
+  test("returns false for undefined-like malformed entries", () => {
+    expect(isNotEmptyMessage(undefined as any)).toBe(false);
+    expect(isNotEmptyMessage({} as any)).toBe(false);
+    expect(isNotEmptyMessage({ type: "user" } as any)).toBe(false);
+  });
 });
 
 // ─── deriveUUID ─────────────────────────────────────────────────────────

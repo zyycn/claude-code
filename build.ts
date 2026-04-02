@@ -2,7 +2,7 @@ import { readdir, readFile, writeFile } from "fs/promises";
 import { join } from "path";
 import { getMacroDefines } from "./scripts/defines.ts";
 
-const outdir = "dist";
+const outdir = process.env.CLAUDE_CODE_BUILD_OUTDIR?.trim() || "dist";
 
 // Step 1: Clean output directory
 const { rmSync } = await import("fs");

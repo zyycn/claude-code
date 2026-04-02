@@ -58,6 +58,58 @@ bun run build
 
 构建出的版本 bun 和 node 都可以启动, 你 publish 到私有源可以直接启动
 
+### Fork 发布 / claudex 启动
+
+现在仓库额外提供了一套**低侵入 fork 发布链路**：
+
+- 配置目录：`~/.claudex`
+- 全局配置文件：`~/.claudex/.claude.json`
+
+```bash
+# 准备 npm 发布目录（默认包名 @zyycn/claudex，命令名 claudex）
+bun run release:prepare
+
+# 发布目录
+dist/npm/
+```
+
+- 发布脚本：`scripts/release/prepare-release-package.mjs`
+- 启动包装器：`scripts/release/bin/claudex.js`
+- 上游同步脚本：`scripts/sync-upstream.sh`
+- GitHub Actions：
+  - `.github/workflows/sync-upstream.yml`
+  - `.github/workflows/publish-npm.yml`
+
+可通过 GitHub Actions Variables 覆盖：
+
+- `NPM_PACKAGE_NAME`
+- `NPM_BIN_NAME`
+- `PUBLISH_REPOSITORY_URL`
+- `UPSTREAM_URL`
+- `UPSTREAM_BRANCH`
+- `TARGET_BRANCH`
+
+### Fork 新增功能
+
+这个 fork 在尽量跟随上游的前提下，额外补了几项日常更实用的能力：
+
+- `claudex` 品牌化分发：
+  - 支持独立包名、命令名、配置目录和更新提示。
+  - 默认发布包为 `@zyycn/claudex`，命令名为 `claudex`，配置目录为 `~/.claudex`。
+- OpenAI 兼容接口接入：
+  - 支持把请求转换到 OpenAI Chat Completions 风格接口。
+  - 自定义 API 存储区分 `anthropic` / `openai` provider，并保存各自模型列表。
+- Buddy 扩展：
+  - `/buddy hatch`、`/buddy rehatch`、`/buddy pet`、`/buddy mute`、`/buddy unmute` 可直接使用。
+  - 启动后可在输入区旁显示 companion，并支持 pet 动画和静音恢复。
+- 启动页体验增强：
+  - 启动欢迎屏支持 Recent activity 预载入。
+  - 支持从 npm registry 检测 fork 包的新版本并提示升级命令。
+  - 修复欢迎页空会话时 `Ctrl-C` 退出偶发与 shell prompt 落在同一行的问题。
+- 上游同步与自动发布：
+  - 增加 `scripts/sync-upstream.sh` 和对应 GitHub Actions。
+  - npm 发布工作流已经切换为 GitHub OIDC trusted publishing，可直接从 Actions 发布。
+
 如果遇到 bug 请直接提一个 issues, 我们优先解决
 
 ## 相关文档及网站

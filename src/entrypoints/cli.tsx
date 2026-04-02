@@ -1,6 +1,12 @@
 #!/usr/bin/env bun
 import { feature } from 'bun:bundle';
+import { getCliBin, getCliDisplayName } from '../utils/cliBranding.js';
 
+function getCliVersion(): string {
+  return typeof MACRO !== 'undefined' && typeof MACRO.VERSION === 'string'
+    ? MACRO.VERSION
+    : process.env.npm_package_version?.trim() || 'dev'
+}
 // Bugfix for corepack auto-pinning, which adds yarnpkg to peoples' package.jsons
 // eslint-disable-next-line custom-rules/no-top-level-side-effects
 process.env.COREPACK_ENABLE_AUTO_PIN = '0';
@@ -41,12 +47,14 @@ if (feature('ABLATION_BASELINE') && process.env.CLAUDE_CODE_ABLATION_BASELINE) {
  */
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
+  const cliBin = getCliBin();
+  const cliDisplayName = getCliDisplayName(cliBin);
 
   // Fast-path for --version/-v: zero module loading needed
   if (args.length === 1 && (args[0] === '--version' || args[0] === '-v' || args[0] === '-V')) {
     // MACRO.VERSION is inlined at build time
     // biome-ignore lint/suspicious/noConsole:: intentional console output
-    console.log(`${MACRO.VERSION} (Claude Code)`);
+    console.log(`${getCliVersion()} (${cliDisplayName})`);
     return;
   }
 
