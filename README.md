@@ -107,6 +107,9 @@ dist/npm/
   - 启动欢迎屏支持 Recent activity 预载入。
   - 支持从 npm registry 检测 fork 包的新版本并提示升级命令。
   - 修复欢迎页空会话时 `Ctrl-C` 退出偶发与 shell prompt 落在同一行的问题。
+- 权限切换命令：
+  - 新增 `/permission`，可在当前会话内直接切换 `Default` / `Full Access`。
+  - 选择 `Full Access` 后，会话内默认放行网络访问和工作区外文件编辑请求。
 - 上游同步与自动发布：
   - 增加 `scripts/sync-upstream.sh` 和对应 GitHub Actions。
   - npm 发布工作流已经切换为 GitHub OIDC trusted publishing，可直接从 Actions 发布。
@@ -267,6 +270,7 @@ dist/npm/
 | `/model` | ✅ | 模型选择 |
 | `/output-style` | ✅ | 输出风格 |
 | `/passes` | ✅ | 推荐码 |
+| `/permission` | ✅ | 当前会话权限模式切换（Default / Full Access） |
 | `/permissions` | ✅ | 权限管理 |
 | `/plan` | ✅ | 计划模式 |
 | `/plugin` | ✅ | 插件管理 |
