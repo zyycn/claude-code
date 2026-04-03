@@ -16,11 +16,11 @@ describe('cliBranding', () => {
     expect(getCliDisplayName()).toBe('Claudex Code')
   })
 
-  test('falls back to claude when runtime macros are unavailable', () => {
+  test('falls back to claudex when runtime macros are unavailable', () => {
     delete process.env.CLAUDE_CODE_BIN_NAME
 
-    expect(getCliBin()).toBe('claude')
-    expect(getCliDisplayName()).toBe('Claude Code')
+    expect(getCliBin()).toBe('claudex')
+    expect(getCliDisplayName()).toBe('Claudex Code')
   })
 
   test('keeps the upstream display name for the default binary', () => {

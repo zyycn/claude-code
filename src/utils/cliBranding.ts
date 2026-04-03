@@ -5,7 +5,7 @@ function getMacroPackageBin(): string | undefined {
 }
 
 export function getCliBin(): string {
-  return process.env.CLAUDE_CODE_BIN_NAME?.trim() || getMacroPackageBin() || 'claude'
+  return process.env.CLAUDE_CODE_BIN_NAME?.trim() || getMacroPackageBin() || 'claudex'
 }
 
 export function getCliDisplayName(cliBin = getCliBin()): string {

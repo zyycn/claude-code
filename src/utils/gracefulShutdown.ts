@@ -1,5 +1,4 @@
 import chalk from 'chalk'
-import { writeSync } from 'fs'
 import memoize from 'lodash-es/memoize.js'
 import { onExit } from 'signal-exit'
 import type { ExitReason } from 'src/entrypoints/agentSdkTypes.js'
@@ -45,6 +44,7 @@ import { getCurrentSessionTitle, sessionIdExists } from './sessionStorage.js'
 import { sleep } from './sleep.js'
 import { closeSentry } from './sentry.js'
 import { profileReport } from './startupProfiler.js'
+import { writeSync } from './writeSync.js'
 
 /**
  * Clean up terminal modes synchronously before process exit.
