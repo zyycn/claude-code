@@ -1,8 +1,6 @@
 import { execFileSync } from 'node:child_process'
 import {
-  chmod,
   copyFile,
-  mkdir,
   readFile,
   readdir,
   rm,
@@ -15,8 +13,6 @@ import { fileURLToPath } from 'node:url'
 const here = dirname(fileURLToPath(import.meta.url))
 const rootDir = join(here, '..', '..')
 const releaseDir = join(rootDir, 'dist', 'npm')
-const wrapperSource = join(rootDir, 'scripts', 'release', 'bin', 'claudex.js')
-const releaseBin = join(releaseDir, 'bin', 'claudex.js')
 const rootPackage = JSON.parse(
   await readFile(join(rootDir, 'package.json'), 'utf8'),
 )
@@ -38,9 +34,6 @@ runBuild({
   CLAUDE_CODE_BUILD_OUTDIR: join(releaseDir, 'dist'),
 })
 
-await mkdir(join(releaseDir, 'bin'), { recursive: true })
-await copyFile(wrapperSource, releaseBin)
-await chmod(releaseBin, 0o755)
 await copyIfPresent(join(rootDir, 'README.md'), join(releaseDir, 'README.md'))
 
 const licenseSource = join(rootDir, 'LICENSE.md')
@@ -57,9 +50,9 @@ const publishPackage = {
     'Claudex CLI distribution built from a Claude Code fork.',
   type: 'module',
   bin: {
-    [binName]: './bin/claudex.js',
+    [binName]: './dist/cli.js',
   },
-  files: ['bin', 'dist', 'README.md', 'LICENSE.md'],
+  files: ['dist', 'README.md', 'LICENSE.md'],
   engines: {
     node: process.env.NPM_NODE_ENGINE || '>=20.0.0',
   },

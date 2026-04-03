@@ -79,16 +79,42 @@ function findExecutable(executable: string): string | null {
   }
 }
 
+function tryFindGitBashPath(): string | null {
+  if (process.env.CLAUDE_CODE_GIT_BASH_PATH) {
+    if (checkPathExists(process.env.CLAUDE_CODE_GIT_BASH_PATH)) {
+      return process.env.CLAUDE_CODE_GIT_BASH_PATH
+    }
+    return null
+  }
+
+  const gitPath = findExecutable('git')
+  if (gitPath) {
+    const bashPath = pathWin32.join(gitPath, '..', '..', 'bin', 'bash.exe')
+    if (checkPathExists(bashPath)) {
+      return bashPath
+    }
+  }
+
+  return null
+}
+
 /**
- * If Windows, set the SHELL environment variable to git-bash path.
+ * If Windows, set the SHELL environment variable to git-bash path when available.
  * This is used by BashTool and Shell.ts for user shell commands.
  * COMSPEC is left unchanged for system process execution.
  */
 export function setShellIfWindows(): void {
   if (getPlatform() === 'windows') {
-    const gitBashPath = findGitBashPath()
-    process.env.SHELL = gitBashPath
-    logForDebugging(`Using bash path: "${gitBashPath}"`)
+    const gitBashPath = tryFindGitBashPath()
+    if (gitBashPath) {
+      process.env.SHELL = gitBashPath
+      logForDebugging(`Using bash path: "${gitBashPath}"`)
+    } else {
+      logForDebugging(
+        'Git Bash not found during startup; continuing without setting SHELL',
+        { level: 'warn' },
+      )
+    }
   }
 }
 
@@ -108,12 +134,9 @@ export const findGitBashPath = memoize((): string => {
     process.exit(1)
   }
 
-  const gitPath = findExecutable('git')
-  if (gitPath) {
-    const bashPath = pathWin32.join(gitPath, '..', '..', 'bin', 'bash.exe')
-    if (checkPathExists(bashPath)) {
-      return bashPath
-    }
+  const gitBashPath = tryFindGitBashPath()
+  if (gitBashPath) {
+    return gitBashPath
   }
 
   // biome-ignore lint/suspicious/noConsole:: intentional console output
@@ -123,6 +146,7 @@ export const findGitBashPath = memoize((): string => {
   // eslint-disable-next-line custom-rules/no-process-exit
   process.exit(1)
 })
+
 
 /** Convert a Windows path to a POSIX path using pure JS. */
 export const windowsPathToPosixPath = memoizeWithLRU(

@@ -77,7 +77,7 @@ dist/npm/
 ```
 
 - 发布脚本：`scripts/release/prepare-release-package.mjs`
-- 启动包装器：`scripts/release/bin/claudex.js`
+- release 包入口：`dist/npm/dist/cli.js`
 - 上游同步脚本：`scripts/sync-upstream.sh`
 - GitHub Actions：
   - `.github/workflows/sync-upstream.yml`

@@ -186,7 +186,7 @@ export const init = memoize(async (): Promise<void> => {
       }
     }
 
-    // Set up git-bash if relevant
+    // Best-effort Git Bash detection for Windows bash-based features.
     setShellIfWindows()
 
     // Register LSP manager cleanup (initialization happens in main.tsx after --plugin-dir is processed)

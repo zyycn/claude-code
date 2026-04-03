@@ -25,6 +25,7 @@
     "bun": ">=1.2.0"
   },
   "bin": {
+    "claudex": "dist/cli.js",
     "ccb": "dist/cli.js"
   },
   "workspaces": [
