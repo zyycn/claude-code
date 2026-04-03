@@ -8,12 +8,27 @@ type WriteCall = {
 const writeCalls: WriteCall[] = []
 const processExitCalls: number[] = []
 
-mock.module('fs', () => ({
-  writeSync: (fd: number, text: string) => {
-    writeCalls.push({ fd, text: String(text) })
-    return String(text).length
-  },
-}))
+mock.module('fs', async () => {
+  const actual = await import('node:fs')
+  return {
+    ...actual,
+    writeSync: (fd: number, text: string) => {
+      writeCalls.push({ fd, text: String(text) })
+      return String(text).length
+    },
+  }
+})
+
+mock.module('node:fs', async () => {
+  const actual = await import('node:fs')
+  return {
+    ...actual,
+    writeSync: (fd: number, text: string) => {
+      writeCalls.push({ fd, text: String(text) })
+      return String(text).length
+    },
+  }
+})
 
 mock.module('chalk', () => ({
   default: {
